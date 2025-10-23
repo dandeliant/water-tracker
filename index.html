@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Water Tracker</title>
+<!-- Prosta miniaturka zakładki: kropla na niebieskim tle -->
+<link rel="icon" href='data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128"><rect width="128" height="128" rx="24" fill="%230b76ff"/><path d="M64 14c16 24 30 41 30 56a30 30 0 1 1-60 0c0-15 14-32 30-56z" fill="white"/></svg>' />
+<style>
+  body{margin:0;font-family:system-ui,Segoe UI,Roboto,Arial,sans-serif;background:#0f172a;color:#e5e7eb}
+  .wrap{max-width:520px;margin:24px auto;padding:16px}
+  .card{background:#0b0f19;border:1px solid #1f2937;border-radius:16px;padding:16px}
+  .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+  .btn{border:1px solid #38bdf866;background:#38bdf822;color:#e5e7eb;border-radius:12px;padding:10px 12px;font-weight:700;cursor:pointer}
+  .num{flex:1;min-width:150px;background:#0b1223;border:1px solid #334155;color:#e5e7eb;border-radius:12px;padding:10px 12px;font-weight:700}
+  .big{font-size:28px;font-weight:800;margin:8px 0}
+  .muted{color:#9ca3af}
+  progress{width:100%;height:14px;border-radius:999px;overflow:hidden}
+  progress::-webkit-progress-bar{background:#1f2937;border-radius:999px}
+  progress::-webkit-progress-value{background:#38bdf8}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>💧 Water Tracker</h1>
+  <div class="card">
+    <div class="row" style="margin-bottom:8px">
+      <input id="date" type="date" class="num">
+      <input id="goal" type="number" min="0" step="50" value="2500" class="num" />
+    </div>
+    <div class="big"><span id="consumed">0</span> / <span id="goalView">2500</span> ml</div>
+    <div class="muted" style="margin-bottom:8px">Pozostało: <span id="left">2500</span> ml</div>
+    <progress id="bar" max="2500" value="0"></progress>
+    <div class="row" style="margin-top:12px">
+      <button class="btn" data-add="100">+100 ml</button>
+      <button class="btn" data-add="200">+200 ml</button>
+      <button class="btn" data-add="500">+500 ml</button>
+      <input id="custom" type="number" min="1" step="10" placeholder="Własna porcja (ml)" class="num">
+      <button id="addCustom" class="btn">Dodaj</button>
+      <button id="undo" class="btn" style="margin-left:auto;border-color:#f87171;background:#f871711f">Cofnij</button>
+    </div>
+  </div>
+</div>
+<script>
+const $ = s=>document.querySelector(s);
+const key = d => `water:${d}`;
+const today = () => new Date().toISOString().slice(0,10);
+const read = d => JSON.parse(localStorage.getItem(key(d)) || '{"goal":2500,"entries":[]}');
+const write = (d,data) => localStorage.setItem(key(d), JSON.stringify(data));
+const dateEl = $('#date'), goalEl = $('#goal'), bar = $('#bar');
+const consumedEl = $('#consumed'), goalViewEl = $('#goalView'), leftEl = $('#left');
+
+function refresh(){
+  const d = dateEl.value;
+  const data = read(d);
+  const sum = data.entries.reduce((s,e)=>s+e,0);
+  consumedEl.textContent = sum;
+  goalViewEl.textContent = data.goal;
+  leftEl.textContent = Math.max(0, data.goal - sum);
+  bar.max = Math.max(1, data.goal); bar.value = sum;
+  goalEl.value = data.goal;
+}
+function add(ml){
+  const d = dateEl.value, data = read(d);
+  data.entries.push(Math.max(1, Math.round(Number(ml)||0)));
+  write(d,data); refresh();
+}
+function undo(){
+  const d = dateEl.value, data = read(d);
+  data.entries.pop(); write(d,data); refresh();
+}
+dateEl.value = today();
+dateEl.addEventListener('change', refresh);
+goalEl.addEventListener('change', ()=>{
+  const d=dateEl.value, data=read(d);
+  data.goal = Math.max(0, Math.round(Number(goalEl.value)||0));
+  write(d,data); refresh();
+});
+document.querySelectorAll('[data-add]').forEach(b=>b.addEventListener('click',()=>add(b.dataset.add)));
+$('#addCustom').addEventListener('click', ()=>{ const v=$('#custom').value; if(v) add(v); $('#custom').value=''; });
+$('#undo').addEventListener('click', undo);
+refresh();
+</script>
+</body>
+</html>
