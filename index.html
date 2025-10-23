@@ -1,89 +1,49 @@
 <!DOCTYPE html>
 <html lang="pl">
 <head>
-  <link rel="manifest" href="manifest.webmanifest">
-<script> if ('serviceWorker' in navigator) navigator.serviceWorker.register('./service-worker.js'); </script>
-
 <meta charset="utf-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1" />
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
 <title>Water Tracker</title>
-<!-- Prosta miniaturka zakładki: kropla na niebieskim tle -->
-<link rel="icon" href='data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128"><rect width="128" height="128" rx="24" fill="%230b76ff"/><path d="M64 14c16 24 30 41 30 56a30 30 0 1 1-60 0c0-15 14-32 30-56z" fill="white"/></svg>' />
+
+<!-- PWA -->
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#0f172a">
+<link rel="apple-touch-icon" href="icon-192.png">
+
 <style>
-  body{margin:0;font-family:system-ui,Segoe UI,Roboto,Arial,sans-serif;background:#0f172a;color:#e5e7eb}
-  .wrap{max-width:520px;margin:24px auto;padding:16px}
-  .card{background:#0b0f19;border:1px solid #1f2937;border-radius:16px;padding:16px}
-  .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
-  .btn{border:1px solid #38bdf866;background:#38bdf822;color:#e5e7eb;border-radius:12px;padding:10px 12px;font-weight:700;cursor:pointer}
-  .num{flex:1;min-width:150px;background:#0b1223;border:1px solid #334155;color:#e5e7eb;border-radius:12px;padding:10px 12px;font-weight:700}
-  .big{font-size:28px;font-weight:800;margin:8px 0}
-  .muted{color:#9ca3af}
-  progress{width:100%;height:14px;border-radius:999px;overflow:hidden}
-  progress::-webkit-progress-bar{background:#1f2937;border-radius:999px}
-  progress::-webkit-progress-value{background:#38bdf8}
-</style>
-</head>
-<body>
-<div class="wrap">
-  <h1>💧 Water Tracker</h1>
-  <div class="card">
-    <div class="row" style="margin-bottom:8px">
-      <input id="date" type="date" class="num">
-      <input id="goal" type="number" min="0" step="50" value="2500" class="num" />
-    </div>
-    <div class="big"><span id="consumed">0</span> / <span id="goalView">2500</span> ml</div>
-    <div class="muted" style="margin-bottom:8px">Pozostało: <span id="left">2500</span> ml</div>
-    <progress id="bar" max="2500" value="0"></progress>
-    <div class="row" style="margin-top:12px">
-      <button class="btn" data-add="100">+100 ml</button>
-      <button class="btn" data-add="200">+200 ml</button>
-      <button class="btn" data-add="500">+500 ml</button>
-      <input id="custom" type="number" min="1" step="10" placeholder="Własna porcja (ml)" class="num">
-      <button id="addCustom" class="btn">Dodaj</button>
-      <button id="undo" class="btn" style="margin-left:auto;border-color:#f87171;background:#f871711f">Cofnij</button>
-    </div>
-  </div>
-</div>
-<script>
-const $ = s=>document.querySelector(s);
-const key = d => `water:${d}`;
-const today = () => new Date().toISOString().slice(0,10);
-const read = d => JSON.parse(localStorage.getItem(key(d)) || '{"goal":2500,"entries":[]}');
-const write = (d,data) => localStorage.setItem(key(d), JSON.stringify(data));
-const dateEl = $('#date'), goalEl = $('#goal'), bar = $('#bar');
-const consumedEl = $('#consumed'), goalViewEl = $('#goalView'), leftEl = $('#left');
-
-function refresh(){
-  const d = dateEl.value;
-  const data = read(d);
-  const sum = data.entries.reduce((s,e)=>s+e,0);
-  consumedEl.textContent = sum;
-  goalViewEl.textContent = data.goal;
-  leftEl.textContent = Math.max(0, data.goal - sum);
-  bar.max = Math.max(1, data.goal); bar.value = sum;
-  goalEl.value = data.goal;
-}
-function add(ml){
-  const d = dateEl.value, data = read(d);
-  data.entries.push(Math.max(1, Math.round(Number(ml)||0)));
-  write(d,data); refresh();
-}
-function undo(){
-  const d = dateEl.value, data = read(d);
-  data.entries.pop(); write(d,data); refresh();
-}
-dateEl.value = today();
-dateEl.addEventListener('change', refresh);
-goalEl.addEventListener('change', ()=>{
-  const d=dateEl.value, data=read(d);
-  data.goal = Math.max(0, Math.round(Number(goalEl.value)||0));
-  write(d,data); refresh();
-});
-document.querySelectorAll('[data-add]').forEach(b=>b.addEventListener('click',()=>add(b.dataset.add)));
-$('#addCustom').addEventListener('click', ()=>{ const v=$('#custom').value; if(v) add(v); $('#custom').value=''; });
-$('#undo').addEventListener('click', undo);
-refresh();
-</script>
-</body>
-</html>
-
+  :root{
+    --bg:#0f172a; --panel:#111827; --card:#0b1223; --text:#e5e7eb; --muted:#9ca3af;
+    --brand:#38bdf8; --brand-2:#22d3ee; --accent:#34d399; --danger:#fb7185;
+    --shadow: 0 10px 30px rgba(0,0,0,.45);
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{
+    margin:0; font-family:Inter,system-ui,Segoe UI,Roboto,Helvetica,Arial,sans-serif;
+    background: radial-gradient(1200px 1200px at 100% -20%, rgba(56,189,248,.15), transparent 60%),
+                radial-gradient(1200px 1200px at -20% 120%, rgba(34,211,238,.12), transparent 60%),
+                var(--bg);
+    color:var(--text);
+  }
+  .wrap{max-width:980px;margin:28px auto;padding:20px}
+  header{display:flex; gap:16px; align-items:center; justify-content:space-between; margin-bottom:16px;}
+  .title{font-size:clamp(22px,3vw,28px); font-weight:700; letter-spacing:.3px; display:flex; align-items:center; gap:10px;}
+  .pill{font-size:12px; padding:4px 10px; border-radius:9999px; color:#0b0f19;
+    background:linear-gradient(145deg,var(--brand),var(--brand-2)); font-weight:700; letter-spacing:.4px;}
+  .panel{background:rgba(17,24,39,.6); border:1px solid rgba(148,163,184,.12); border-radius:18px; padding:16px; box-shadow:var(--shadow); backdrop-filter: blur(8px);}
+  .grid{display:grid; gap:16px; grid-template-columns: 370px 1fr;}
+  @media (max-width:900px){ .grid{grid-template-columns:1fr} }
+  .card{background:linear-gradient(180deg, rgba(15,23,42,.95), rgba(2,6,23,.95)); border:1px solid rgba(148,163,184,.12); border-radius:20px; padding:20px; box-shadow:var(--shadow);}
+  .ring{width:230px; height:230px; margin:8px auto 14px; border-radius:50%; display:grid; place-items:center;
+    background: conic-gradient(var(--brand) var(--angle), rgba(148,163,184,.12) 0); transition:.3s ease background; position:relative;}
+  .ring::after{content:""; position:absolute; inset:12px; border-radius:50%; background:radial-gradient(200px 200px at 50% 20%, rgba(56,189,248,.06), transparent 50%), var(--card);
+    border:1px solid rgba(148,163,184,.10);}
+  .ring-inner{position:relative; z-index:1; text-align:center;}
+  .big{ font-weight:800; font-size:32px}
+  .sub{ color:var(--muted); font-size:13px }
+  .row{display:flex; gap:10px; align-items:center; flex-wrap:wrap}
+  .row > *{flex:1}
+  .btn{cursor:pointer; border:none; padding:12px 14px; border-radius:14px;
+    background:linear-gradient(160deg, rgba(56,189,248,.18), rgba(34,211,238,.14));
+    color:var(--text); font-weight:700; letter-spacing:.2px; border:1px solid rgba(56,189,248,.25);
+    transi
