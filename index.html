@@ -46,4 +46,259 @@
   .btn{cursor:pointer; border:none; padding:12px 14px; border-radius:14px;
     background:linear-gradient(160deg, rgba(56,189,248,.18), rgba(34,211,238,.14));
     color:var(--text); font-weight:700; letter-spacing:.2px; border:1px solid rgba(56,189,248,.25);
-    transi
+    transition:.15s transform ease,.15s filter ease;}
+  .btn:hover{ transform: translateY(-1px); filter:brightness(1.06); }
+  .btn:active{ transform:translateY(0) scale(.98) }
+  .btn-ghost{background:transparent; border:1px dashed rgba(148,163,184,.35); color:var(--muted);}
+  .btn-danger{background:linear-gradient(160deg, rgba(251,113,133,.18), rgba(244,63,94,.12)); border:1px solid rgba(251,113,133,.35);}
+  .btn-ok{background:linear-gradient(160deg, rgba(52,211,153,.20), rgba(34,197,94,.15)); border:1px solid rgba(52,211,153,.40);}
+  .num{background:rgba(2,6,23,.6); border:1px solid rgba(148,163,184,.18); color:var(--text); border-radius:14px; padding:12px 14px; width:100%; outline:none; font-weight:700;}
+  .num::placeholder{color:var(--muted)}
+  table{width:100%; border-collapse:collapse; font-size:14px}
+  thead th{ text-align:left; color:var(--muted); font-weight:700; padding:8px 10px; border-bottom:1px solid rgba(148,163,184,.16)}
+  tbody td{ padding:10px; border-bottom:1px dashed rgba(148,163,184,.10) }
+  tbody tr:hover{ background:rgba(56,189,248,.06) }
+  .kbd{background:#0f172a; border:1px solid rgba(148,163,184,.35); padding:2px 6px; border-radius:8px; font-size:12px; color:var(--text);}
+  footer{ margin-top:18px; color:var(--muted); font-size:13px; text-align:center }
+  /* Toast do aktualizacji */
+  .toast{position:fixed; left:50%; bottom:16px; transform:translateX(-50%); background:#0b0f19; border:1px solid rgba(148,163,184,.25); color:var(--text);
+    padding:10px 12px; border-radius:12px; display:flex; gap:10px; align-items:center; box-shadow:var(--shadow)}
+  .toast button{padding:8px 10px; border-radius:10px; border:1px solid rgba(56,189,248,.35); background:rgba(56,189,248,.18); color:var(--text); cursor:pointer; font-weight:700}
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <header class="panel">
+      <div class="title">💧 Water Tracker <span class="pill">Daily</span></div>
+      <div class="row" style="max-width:560px">
+        <input id="date" type="date" class="num">
+        <input id="goal" type="number" min="0" step="50" placeholder="Cel (ml)" class="num" title="Cel dzienny w ml">
+        <button id="saveGoal" class="btn btn-ok" title="Zapisz cel dla tego dnia">Zapisz cel</button>
+        <button id="resetDay" class="btn btn-danger" title="Wyczyść dzienny log (R)">Reset dnia</button>
+        <button id="installBtn" class="btn btn-ghost" title="Zainstaluj jako aplikację">Zainstaluj</button>
+      </div>
+    </header>
+
+    <div class="grid">
+      <!-- LEFT: Progress & quick add -->
+      <section class="card">
+        <div id="ring" class="ring" style="--angle:0deg">
+          <div class="ring-inner">
+            <div class="big"><span id="consumedL">0.00</span> L</div>
+            <div class="sub">
+              <span id="consumed">0</span> / <span id="goalView">2500</span> ml
+              · <span id="left">2500</span> ml do celu
+            </div>
+          </div>
+        </div>
+
+        <div class="row" style="margin:10px 0 6px">
+          <button class="btn" data-add="100" title="Skrót: 1">+100 ml</button>
+          <button class="btn" data-add="200" title="Skrót: 2">+200 ml</button>
+          <button class="btn" data-add="500" title="Skrót: 5">+500 ml</button>
+        </div>
+
+        <div class="row">
+          <input id="custom" class="num" type="number" min="1" step="10" placeholder="Własna porcja (ml)" />
+          <button id="addCustom" class="btn">Dodaj</button>
+          <button id="undo" class="btn btn-ghost" title="Cofnij ostatni wpis (U)">Cofnij</button>
+        </div>
+
+        <div style="margin-top:12px; color:var(--muted); font-size:13px">
+          Skróty: <span class="kbd">1</span>=100 ml, <span class="kbd">2</span>=200 ml, <span class="kbd">5</span>=500 ml,
+          <span class="kbd">U</span>=cofnij, <span class="kbd">R</span>=reset, <span class="kbd">G</span>=cel.
+        </div>
+      </section>
+
+      <!-- RIGHT: History & totals -->
+      <section class="card">
+        <div class="row" style="margin-bottom:8px">
+          <div style="flex:1; font-weight:800">Historia dnia</div>
+          <button id="exportBtn" class="btn btn-ghost" title="Eksportuj JSON">Eksport</button>
+          <button id="importBtn" class="btn btn-ghost" title="Import JSON">Import</button>
+        </div>
+        <div class="panel" style="padding:0">
+          <table>
+            <thead>
+              <tr><th>#</th><th>Porcja (ml)</th><th>Godzina</th><th></th></tr>
+            </thead>
+            <tbody id="logBody"></tbody>
+          </table>
+        </div>
+      </section>
+    </div>
+
+    <footer>
+      Zapis lokalny przeglądarki · Każdy dzień ma własny log · Zmień datę, aby przeglądać inne dni
+    </footer>
+  </div>
+
+<!-- Toast do aktualizacji -->
+<div id="updateToast" class="toast" style="display:none">
+  <span>Nowa wersja dostępna</span>
+  <button id="reloadBtn">Odśwież</button>
+</div>
+
+<script>
+(() => {
+  const $ = sel => document.querySelector(sel);
+
+  // ====== PWA: instalacja + SW + auto-update ======
+  let deferredPrompt=null;
+  const installBtn = $('#installBtn');
+  window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); deferredPrompt = e; installBtn.style.opacity = 1; });
+  installBtn.addEventListener('click', async ()=>{ if(!deferredPrompt){ alert('Na iOS: Udostępnij → Do ekranu głównego'); return; } deferredPrompt.prompt(); deferredPrompt = null; });
+
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('./service-worker.js').then(reg => {
+      // jeśli jest nowy SW -> pokaż toast
+      reg.addEventListener('updatefound', () => {
+        const newSW = reg.installing;
+        newSW.addEventListener('statechange', () => {
+          if (newSW.state === 'installed' && navigator.serviceWorker.controller) {
+            $('#updateToast').style.display = 'flex';
+          }
+        });
+      });
+    });
+    // kliknięcie "Odśwież"
+    $('#reloadBtn').addEventListener('click', () => window.location.reload());
+  }
+
+  // ====== Twoja logika aplikacji (bez zmian w UX) ======
+  const dateEl = $('#date');
+  const goalEl = $('#goal');
+  const saveGoalBtn = $('#saveGoal');
+  const resetDayBtn = $('#resetDay');
+  const ring = $('#ring');
+  const consumedEl = $('#consumed');
+  const consumedLEl = $('#consumedL');
+  const goalViewEl = $('#goalView');
+  const leftEl = $('#left');
+  const logBody = $('#logBody');
+  const customEl = $('#custom');
+  const addCustomBtn = $('#addCustom');
+  const exportBtn = $('#exportBtn');
+  const importBtn = $('#importBtn');
+  const undoBtn = $('#undo');
+
+  const k = d => `water:${d}`;
+  const todayStr = () => new Date().toISOString().slice(0,10);
+
+  function readDay(date){
+    const raw = localStorage.getItem(k(date));
+    return raw ? JSON.parse(raw) : { goal:2500, entries:[] };
+  }
+  function writeDay(date, data){
+    localStorage.setItem(k(date), JSON.stringify(data));
+  }
+
+  function mlToL(ml){ return (ml/1000).toFixed(2); }
+  function clamp(v, min, max){ return Math.min(max, Math.max(min, v)); }
+
+  function refresh(){
+    const d = dateEl.value;
+    const data = readDay(d);
+    const sum = data.entries.reduce((s, e) => s + e.ml, 0);
+    const goal = Math.max(0, Number(data.goal)||0);
+
+    consumedEl.textContent = sum;
+    consumedLEl.textContent = mlToL(sum);
+    goalViewEl.textContent = goal;
+    leftEl.textContent = Math.max(0, goal - sum);
+
+    const pct = goal ? clamp(sum/goal, 0, 1) : 0;
+    ring.style.setProperty('--angle', `${pct*360}deg`);
+
+    logBody.innerHTML = '';
+    data.entries.forEach((e, i) => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>${i+1}</td>
+        <td><strong>${e.ml}</strong></td>
+        <td>${new Date(e.t).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</td>
+        <td style="text-align:right">
+          <button class="btn btn-ghost" data-del="${i}">Usuń</button>
+        </td>`;
+      logBody.appendChild(tr);
+    });
+
+    goalEl.value = goal;
+  }
+
+  function addEntry(ml){
+    ml = Math.max(1, Math.round(Number(ml)||0));
+    const d = dateEl.value;
+    const data = readDay(d);
+    data.entries.push({ ml, t: Date.now() });
+    writeDay(d, data);
+    refresh();
+  }
+  function deleteEntry(idx){
+    const d = dateEl.value;
+    const data = readDay(d);
+    data.entries.splice(idx,1);
+    writeDay(d, data);
+    refresh();
+  }
+  function undo(){
+    const d = dateEl.value;
+    const data = readDay(d);
+    data.entries.pop();
+    writeDay(d, data);
+    refresh();
+  }
+  function resetDay(){
+    if(!confirm('Wyczyścić wszystkie wpisy dla tego dnia?')) return;
+    const d = dateEl.value;
+    const data = readDay(d);
+    data.entries = [];
+    writeDay(d, data);
+    refresh();
+  }
+
+  dateEl.value = todayStr();
+  dateEl.addEventListener('change', refresh);
+
+  saveGoalBtn.addEventListener('click', () => {
+    const d = dateEl.value;
+    const data = readDay(d);
+    const val = Math.max(0, Math.round(Number(goalEl.value)||0));
+    data.goal = val;
+    writeDay(d, data);
+    refresh();
+  });
+
+  resetDayBtn.addEventListener('click', resetDay);
+  undoBtn.addEventListener('click', undo);
+
+  document.querySelectorAll('[data-add]').forEach(btn => {
+    btn.addEventListener('click', () => addEntry(btn.getAttribute('data-add')));
+  });
+  addCustomBtn.addEventListener('click', () => {
+    const v = customEl.value;
+    if(v) addEntry(v);
+    customEl.value = '';
+    customEl.focus();
+  });
+
+  logBody.addEventListener('click', e => {
+    const btn = e.target.closest('[data-del]');
+    if(btn) deleteEntry(Number(btn.getAttribute('data-del')));
+  });
+
+  window.addEventListener('keydown', e => {
+    if (['INPUT','TEXTAREA'].includes(document.activeElement.tagName)) return;
+    if(e.key==='1') addEntry(100);
+    if(e.key==='2') addEntry(200);
+    if(e.key==='5') addEntry(500);
+    if(e.key.toLowerCase()==='u') undo();
+    if(e.key.toLowerCase()==='r') resetDay();
+    if(e.key.toLowerCase()==='g') goalEl.focus();
+  });
+
+  refresh();
+})();
+</script>
+</body>
+</html>
