@@ -1,6 +1,9 @@
 <!DOCTYPE html>
 <html lang="pl">
 <head>
+  <link rel="manifest" href="manifest.webmanifest">
+<script> if ('serviceWorker' in navigator) navigator.serviceWorker.register('./service-worker.js'); </script>
+
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
 <title>Water Tracker</title>
@@ -83,3 +86,4 @@ refresh();
 </script>
 </body>
 </html>
+
